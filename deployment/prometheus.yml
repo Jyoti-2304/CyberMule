@@ -1,0 +1,40 @@
+# Prometheus configuration for fraud detection monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'fraud-detection'
+
+scrape_configs:
+  - job_name: 'fraud-detection-api'
+    static_configs:
+      - targets: ['localhost:8001']
+    metrics_path: '/metrics'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+alert_rules:
+  - static_configs:
+      - labels:
+          alertmanager: 'fraud-detection'
+        rules:
+          - alert: HighFraudRate
+            expr: rate(fraud_detection_transactions_flagged_total[5m]) > 0.1
+            for: 5m
+            annotations:
+              summary: "High fraud rate detected"
+
+          - alert: APIDown
+            expr: up{job="fraud-detection-api"} == 0
+            for: 1m
+            annotations:
+              summary: "Fraud detection API is down"
+
+          - alert: DatabaseConnectionFailure
+            expr: fraud_detection_database_connections == 0
+            for: 1m
+            annotations:
+              summary: "Database connection pool exhausted"
